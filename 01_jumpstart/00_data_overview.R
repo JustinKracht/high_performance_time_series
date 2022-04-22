@@ -13,25 +13,25 @@ library(here)
 #   - Website traffic (Page Views, Sessions, Organic Traffic)
 #   - Top 20 Pages
 
-read_rds(here("data/google_analytics_summary_hourly.RDS"))
-read_rds(here("data/google_analytics_by_page_daily.RDS"))
+read_rds(here("00_data/google_analytics_summary_hourly.RDS"))
+read_rds(here("00_data/google_analytics_by_page_daily.RDS"))
 
 # * Build Relationships ----
 #   - Collect emails
 #   - Host Events
 
-# Mailchimp data
-read_rds(here("data/mailchimp_users.rds"))
+# Mailchimp 00_data
+read_rds(here("00_data/mailchimp_users.rds"))
 
 # Learning Labs
-read_rds(here("data/learning_labs.rds"))
+read_rds(here("00_data/learning_labs.rds"))
 
 # * Generate Course Revenue ----
-#   - Revenue data (aggregated at weekly interval)
+#   - Revenue 00_data (aggregated at weekly interval)
 #   - Product Events
 
 # Transactions Weekly
-read_rds(here("data/transactions_weekly.rds"))
+read_rds(here("00_data/transactions_weekly.rds"))
 
 # Product Events
-read_rds(here("data/product_events.rds"))
+read_rds(here("00_data/product_events.rds"))

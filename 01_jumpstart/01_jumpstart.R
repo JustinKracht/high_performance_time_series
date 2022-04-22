@@ -19,10 +19,11 @@ library(DataExplorer)
 library(tidyverse)
 library(timetk)
 library(lubridate)
+library(here)
 
 # DATA -----
 
-mailchimp_users <- read_rds(here("data/mailchimp_users.rds"))
+mailchimp_users <- read_rds(here("00_data/mailchimp_users.rds"))
 
 # 1.0 EDA & DATA PREP ----
 # * DAILY SUBSCRIBERS INCREASES
@@ -31,12 +32,11 @@ glimpse(mailchimp_users)
 
 ## 1.1 Count of Opt-ins by Day ----
 
-optins_day <- mailchimp_users %>%
-  summarise_by_time(
-    .date_var = optin_time,
-    by = "day",
-    optins = n()
-  )
+optins_day <- mailchimp_users %>% summarise_by_time(
+  .date_var = optin_time,
+  .by = "day",
+  optins = n()
+)
 
 ## 1.2 Summary Diagnostics ----
 
@@ -90,15 +90,72 @@ model_prophet_fit <- prophet_reg() %>%
 
 ## 3.2 Modeltime Process ----
 
-modeltime_table(
+model <- modeltime_table(
   model_prophet_fit
 )
 
+## 3.3 Calibration ----
+
+calibration <- modeltime_calibrate(object = model, new_data = testing(splits))
+
+## 3.4 Visualize Forecast ----
+
+modeltime_forecast(object = calibration, actual_data = evaluation) %>%
+  plot_modeltime_forecast()
+  
+## 3.5 Get Accuracy Metrics ----
+
+calibration %>%
+  modeltime_accuracy()
+
 # 4.0 FORECASTING WITH FEATURE ENGINEERING ----
 
+## 4.1 Identify Possible Features ----
 
+evaluation %>%
+  plot_seasonal_diagnostics(optin_time, log(optins))
 
+## 4.2 Recipes Spec ----
 
+training_splits <- training(splits)
+
+recipe_spec <- recipe(optins ~ ., data = training_splits) %>%
+  step_timeseries_signature(optin_time) %>%
+  step_rm(ends_with(".iso"), ends_with(".xts"),
+          contains("hour"), contains("minute"), 
+          contains("second"), contains("am.pm")) %>%
+  step_normalize(ends_with("index.num"), ends_with("_year")) %>%
+  step_dummy(all_nominal())
+
+recipe_spec %>%
+  prep() %>%
+  juice() %>%
+  glimpse()
+
+## 4.3 Machine Learning Specs ----
+
+model_spec <- linear_reg() %>%
+  set_engine("lm")
+
+workflow_fit_lm <- workflow() %>%
+  add_model(model_spec) %>%
+  add_recipe(recipe_spec) %>%
+  fit(training(splits))
+
+## 4.4 Modeltime Process ----
+
+calibration <- modeltime_table(
+  model_prophet_fit,
+  workflow_fit_lm
+) %>% modeltime_calibrate(
+  testing(splits)
+)
+
+modeltime_accuracy(calibration)
+
+calibration %>%
+  modeltime_forecast(new_data = testing(splits), actual_data = evaluation) %>%
+  plot_modeltime_forecast()
 
 # 5.0 SUMMARY & NEXT STEPS ----
 
